@@ -120,6 +120,8 @@ class BayesianRegression(object):
 class SVDBayesianRegression(BayesianRegression):
 
     def __init__(self, X, y, y_err, prior_sd=500):
+        """A regression class which operates based on the singlar value
+        decomposition of the regressor variables """
 
         u, s, v = np.linalg.svd(X, full_matrices=False)
         rank = (s > 1E-8).sum()
@@ -141,12 +143,6 @@ class SVDBayesianRegression(BayesianRegression):
         beta = np.concatenate([np.atleast_2d(alpha[:,0]), beta_no_slope]).T
 
         return sigma_squared, beta, y_hat
-        
-
-    # def predict(self, X, beta, centered=True):
-    #
-    #     X_trans = X @ (self._v.T @ np.diag(1/self._s)[:, :self._rank])
-    #     return BayesianRegression.predict(self, X_trans, beta, centered)
 
     
     def is_outlier(self, X):
@@ -157,6 +153,11 @@ class SVDBayesianRegression(BayesianRegression):
 class BayesianRegressionOutlier(SVDBayesianRegression, BayesianRegression):
 
     def __init__(self, X, y, y_err, prior_sd=500):
+        """ A class which uses the BayesianRegression class for the base
+        regression, while using the SVDBayesianRegression class for outlier
+        detection.
+        """
+
         BayesianRegression.__init__(self, X, y, y_err, prior_sd)
 
         u, s, v = np.linalg.svd(X, full_matrices=False)
