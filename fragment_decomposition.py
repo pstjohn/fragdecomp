@@ -9,7 +9,7 @@ from rdkit.Chem import rdDepictor
 from rdkit.Chem.Draw import rdMolDraw2D
 
 
-def get_fragments(smiles):
+def get_fragments(smiles, canonicalize=False, isomeric=True):
     """Return a pandas series indicating the carbon types in the given SMILES
     string
 
@@ -18,10 +18,14 @@ def get_fragments(smiles):
 
     """
     mol = Chem.MolFromSmiles(smiles)
+    if canonicalize:
+        smiles = Chem.MolToSmiles(mol, isomericSmiles=isomeric)
+
     mol = Chem.AddHs(mol)  # This seems important to get just the next C
     return pd.Series(Counter((
-                get_environment_smarts(carbon, mol)
-                for carbon in iter_carbons(mol))))
+        get_environment_smarts(carbon, mol)
+        for carbon in iter_carbons(mol))),
+                     name=smiles)
 
 
 def iter_carbons(mol):
