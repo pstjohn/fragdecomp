@@ -72,10 +72,10 @@ def inchi_from_smiles(smiles):
     return MolToInchi(mol)
 
 
-def canonicalize_smiles(smiles):
+def canonicalize_smiles(smiles, isomeric=True):
     try:
         mol = MolFromSmiles(smiles)
-        return MolToSmiles(mol, isomericSmiles=True)
+        return MolToSmiles(mol, isomericSmiles=isomeric)
     except Exception:
         pass
 
