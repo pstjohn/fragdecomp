@@ -8,8 +8,9 @@ from IPython.display import SVG
 from rdkit.Chem import rdDepictor
 from rdkit.Chem.Draw import rdMolDraw2D
 
+from fragdecomp.chemical_conversions import canonicalize_smiles
 
-def get_fragments(smiles, canonicalize=False, isomeric=True):
+def get_fragments(smiles):
     """Return a pandas series indicating the carbon types in the given SMILES
     string
 
@@ -17,15 +18,11 @@ def get_fragments(smiles, canonicalize=False, isomeric=True):
         A representation of the desired molecule. I.e, 'CCCC'
 
     """
-    mol = Chem.MolFromSmiles(smiles)
-    if canonicalize:
-        smiles = Chem.MolToSmiles(mol, isomericSmiles=isomeric)
-
+    mol = Chem.MolFromSmiles(canonicalize_smiles(smiles, isomeric=False))
     mol = Chem.AddHs(mol)  # This seems important to get just the next C
     return pd.Series(Counter((
-        get_environment_smarts(carbon, mol)
-        for carbon in iter_carbons(mol))),
-                     name=smiles)
+                get_environment_smarts(carbon, mol)
+                for carbon in iter_carbons(mol))))
 
 
 def iter_carbons(mol):
@@ -37,6 +34,12 @@ def iter_carbons(mol):
     for a in mol.GetAtoms():
         if a.GetSymbol() is 'C':
             yield a
+
+        # elif a.GetSymbol() is 'O':
+        #     neighbors = [ai for ai in a.GetNeighbors()
+        #                  if ai.GetSymbol() is not 'H']
+        #     if len(neighbors) > 1:
+        #         yield a
 
 
 def get_environment_smarts(carbon, mol):
@@ -58,7 +61,6 @@ def get_environment_smarts(carbon, mol):
         return bond_smarts + ' | (Ring)'
     else:
         return bond_smarts
-        
 
 
 def bond_list_to_smarts(mol, bond_list):
@@ -147,36 +149,6 @@ def draw_mol_svg(mol_str, color_dict=None, figsize=(300, 300), smiles=True):
 
     svg = SVG(svg.replace('svg:', '').replace(':svg', ''))
     return svg.data
-
-
-# def fragment_image(smarts, figsize=(300, 300)):
-#     """Return an svg depiction of a fragment SMARTS
-#
-#     smarts: string
-#     figsize: tuple
-#     """
-#     mol = Chem.MolFromSmarts(smarts)
-#
-#     mc = Chem.Mol(mol.ToBinary())
-#     if True:
-#         try:
-#             Chem.Kekulize(mc)
-#         except:
-#             mc = Chem.Mol(mol.ToBinary())
-#
-#     if not mc.GetNumConformers():
-#         rdDepictor.Compute2DCoords(mc)
-#
-#     drawer = rdMolDraw2D.MolDraw2DSVG(*figsize)
-#     drawer.DrawMolecule(mc)
-#     drawer.FinishDrawing()
-#
-#     svg = drawer.GetDrawingText()
-#
-#     # It seems that the svg renderer used doesn't quite hit the spec.
-#     # Here are some fixes to make it work in the notebook, although I think
-#     # the underlying issue needs to be resolved at the generation step
-#     return SVG(svg.replace('svg:', ''))
 
 
 def flatten(l, ltypes=(list, tuple)):

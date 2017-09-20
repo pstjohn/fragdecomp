@@ -1,7 +1,7 @@
 import numpy as np
 from warnings import warn
 import scipy
-import scipy.linalg
+from numba import jit
 
 import pymc3 as pm
 
@@ -68,6 +68,7 @@ class BayesianRegression(object):
         self._s_squared = (res @ res.T) / (n_star - (m+1))
 
     
+    @jit
     def sample(self, num=200):
         """Sample the fitted regression. 
 
