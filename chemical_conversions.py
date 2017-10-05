@@ -20,7 +20,7 @@ def get_smiles_from_name(name):
 
     compounds = pcp.get_compounds(name, 'name')
     if len(compounds) == 1:
-        return compounds[0].isomeric_smiles
+        return canonicalize_smiles(compounds[0].isomeric_smiles)
     elif len(compounds) == 0:
         return
     elif len(compounds) > 1:
@@ -88,8 +88,8 @@ def check_cas(cas):
     except Exception:
         return False
 
-cas_search = re.compile('([0-9]{2,7}-[0-9]{2}-[0-9])')
 
+cas_search = re.compile('([0-9]{2,7}-[0-9]{2}-[0-9])')
 
 def get_cas_from_inchi(inchi):
     try:
