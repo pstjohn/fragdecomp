@@ -1,9 +1,8 @@
 import numpy as np
 from warnings import warn
 import scipy
-from numba import jit
-
-import pymc3 as pm
+# from numba import jit
+# import pymc3 as pm
 
 
 class BayesianRegression(object):
@@ -68,7 +67,7 @@ class BayesianRegression(object):
         self._s_squared = (res @ res.T) / (n_star - (m+1))
 
     
-    @jit
+    # @jit
     def sample(self, num=200):
         """Sample the fitted regression. 
 
@@ -108,13 +107,18 @@ class BayesianRegression(object):
         trace of slopes"""
 
         means = beta[:, 1:] @ X.T + np.atleast_2d(beta[:,0]).T
-        median = np.median(means, 0)
-        hpd = pm.hpd(means)
+        mean = means.mean(0)
+        std = means.std(0) * 1.96
 
-        if centered:
-            return median, np.abs(hpd - median[:, np.newaxis])
-        else:
-            return median, hpd
+        return mean, std
+
+        # median = np.median(means, 0)
+        # hpd = pm.hpd(means)
+
+        # if centered:
+        #     return median, np.abs(hpd - median[:, np.newaxis])
+        # else:
+        #     return median, hpd
 
 
 class SVDBayesianRegression(BayesianRegression):
