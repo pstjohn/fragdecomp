@@ -97,7 +97,7 @@ def label_fragments(smiles):
     smiles: string
 
     """
-    mol = Chem.MolFromSmiles(smiles)
+    mol = Chem.MolFromSmiles(canonicalize_smiles(smiles, isomeric=False))
     mol = Chem.AddHs(mol)
     out = {}
     for carbon in iter_carbons(mol):

@@ -1,5 +1,5 @@
 import numpy as np
-import scipy
+import scipy.linalg
 # from numba import jit
 # import pymc3 as pm
 
