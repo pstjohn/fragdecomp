@@ -4,7 +4,7 @@ import re
 import pandas as pd
 
 from rdkit import Chem
-from IPython.display import SVG
+# from IPython.display import SVG
 
 from rdkit.Chem import rdDepictor
 from rdkit.Chem.Draw import rdMolDraw2D
@@ -157,8 +157,8 @@ def draw_mol_svg(mol_str, color_dict=None, figsize=(300, 300), smiles=True):
     drawer.FinishDrawing()
     svg = drawer.GetDrawingText()
 
-    svg = SVG(svg.replace('svg:', '').replace(':svg', ''))
-    return svg.data
+    svg = svg.replace('svg:', '').replace(':svg', '')
+    return svg
 
 
 def flatten(l, ltypes=(list, tuple)):
