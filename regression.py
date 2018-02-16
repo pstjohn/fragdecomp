@@ -1,5 +1,4 @@
 import numpy as np
-from warnings import warn
 import scipy
 # from numba import jit
 # import pymc3 as pm
@@ -33,8 +32,8 @@ class BayesianRegression(object):
 
         # Add an intercept term
         X_intercept = np.hstack([np.ones(n)[:, np.newaxis], X])
-        if np.linalg.matrix_rank(X_intercept) < (m+1):
-            warn("X Matrix is not full-rank")
+        # if np.linalg.matrix_rank(X_intercept) < (m+1):
+        #     warn("X Matrix is not full-rank")
 
         # Augment matrix to account for prior distribution. From Gelman, 14.24
         # (mean 0, std=500)
