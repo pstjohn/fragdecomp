@@ -102,7 +102,7 @@ class BayesianRegression(object):
         return sigma_squared, beta, y_hat
 
 
-    def predict(self, X, beta, centered=True):
+    def predict(self, X, beta):
         """Predict the regressed mean and std for a set of explanatory variables and
         trace of slopes"""
 
