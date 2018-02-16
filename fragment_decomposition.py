@@ -1,4 +1,5 @@
 from collections import Counter
+import re
 
 import pandas as pd
 
@@ -10,6 +11,10 @@ from rdkit.Chem.Draw import rdMolDraw2D
 
 from fragdecomp.chemical_conversions import canonicalize_smiles
 
+class FragmentError(Exception):
+    pass
+
+
 def get_fragments(smiles):
     """Return a pandas series indicating the carbon types in the given SMILES
     string
@@ -18,11 +23,16 @@ def get_fragments(smiles):
         A representation of the desired molecule. I.e, 'CCCC'
 
     """
-    mol = Chem.MolFromSmiles(canonicalize_smiles(smiles, isomeric=False))
-    mol = Chem.AddHs(mol)  # This seems important to get just the next C
-    return pd.Series(Counter((
-                get_environment_smarts(carbon, mol)
-                for carbon in iter_carbons(mol))))
+    try:
+        mol = Chem.MolFromSmiles(canonicalize_smiles(smiles, isomeric=False))
+        mol = Chem.AddHs(mol)  # This seems important to get just the next C
+        return pd.Series(Counter((
+                    get_environment_smarts(carbon, mol)
+                    for carbon in iter_carbons(mol))))
+    
+    except Exception:
+        # Deal with wierd rdkit errors
+        raise FragmentError
 
 
 def iter_carbons(mol):
@@ -166,3 +176,30 @@ def flatten(l, ltypes=(list, tuple)):
                 l[i:i + 1] = l[i]
         i += 1
     return ltype(l)
+
+
+def draw_fragment(fragment_name, color):
+    
+    mol = Chem.MolFromSmarts(re.sub(' \|.*$', '', fragment_name))
+    mc = Chem.Mol(mol.ToBinary())
+    rdDepictor.Compute2DCoords(mc)
+
+    drawer = rdMolDraw2D.MolDraw2DSVG(80, 80)
+
+    center = int(pd.Series({atom.GetIdx(): len(atom.GetNeighbors()) for atom in
+                            mol.GetAtoms()}).idxmax())
+    
+    to_highlight = [center]
+    radius_dict = {center: 0.5}
+    color_dict = {center: color}
+    
+    drawer.DrawMolecule(mc, highlightAtoms=to_highlight,
+                        highlightAtomColors=color_dict,
+                        highlightAtomRadii=radius_dict,
+                        highlightBonds=False)
+
+    drawer.FinishDrawing()
+    svg = drawer.GetDrawingText()
+
+    return svg.replace('svg:', '').replace(':svg', '')
+
