@@ -2,6 +2,7 @@ from collections import Counter
 import re
 
 import pandas as pd
+import networkx as nx
 
 from rdkit import Chem
 # from IPython.display import SVG
@@ -15,7 +16,7 @@ class FragmentError(Exception):
     pass
 
 
-def get_fragments(smiles):
+def get_fragments(smiles, size=1):
     """Return a pandas series indicating the carbon types in the given SMILES
     string
 
@@ -24,88 +25,90 @@ def get_fragments(smiles):
 
     """
     try:
-        mol = Chem.MolFromSmiles(canonicalize_smiles(smiles, isomeric=False))
-        mol = Chem.AddHs(mol)  # This seems important to get just the next C
-        return pd.Series(Counter((
-                    get_environment_smarts(carbon, mol)
-                    for carbon in iter_carbons(mol))))
+        test = Fragmenter(smiles, size=size)
+        return test.fragment_counts
+
     
     except Exception:
         # Deal with wierd rdkit errors
         raise FragmentError
 
 
-def iter_carbons(mol):
-    """Iterates over the carbon atoms in the given molecule
+class Fragmenter(object):
+    def __init__(self, smiles, size=1):
+        
+        self.size = size
+        
+        # Build rdkit mol
+        mol = Chem.MolFromSmiles(canonicalize_smiles(smiles, isomeric=False))
+        self.mol = mol = Chem.AddHs(mol)
+        
+        # Build nx graph
+        self.G = nx.Graph()
+        
+        for atom in mol.GetAtoms():
+            self.G.add_node(atom.GetIdx(), symbol=atom.GetSymbol())
 
-    mol: an rdkit.Chem.Mol object
-
-    """
-    for a in mol.GetAtoms():
-        if a.GetSymbol() is 'C':
-            yield a
-
-        # elif a.GetSymbol() is 'O':
-        #     neighbors = [ai for ai in a.GetNeighbors()
-        #                  if ai.GetSymbol() is not 'H']
-        #     if len(neighbors) > 1:
-        #         yield a
-
-
-def get_environment_smarts(carbon, mol):
-    """For a given carbon atom and molecule, return a SMARTS representation of
-    the atom environment.
-
-    carbon: rdkit.Chem.Atom
-        The desired carbon atom
-    mol: rdkit.Chem.Mol
-        The molecule the atom is present in
-
-    """
-    bond_list = list(Chem.FindAtomEnvironmentOfRadiusN(
-            mol, 1, carbon.GetIdx(), useHs=True))
+        for i, bond in enumerate(mol.GetBonds()):
+            self.G.add_edge(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
+            
+        c_nodes = [n for n in self.G if self.G.nodes[n]['symbol'] is 'C']
+        self.H = self.G.subgraph(c_nodes)
+        
+    def backbone_iterator(self):
+        if self.size is 1:
+            for n in self.H:
+                yield (n,)
+                
+        elif self.size is 2:
+            for n in self.H:
+                for m in self.H.neighbors(n):
+                    yield tuple(sorted((n, m)))
+                    
+    @property
+    def backbones(self):
+        return list(set(self.backbone_iterator()))
     
-    bond_smarts = bond_list_to_smarts(mol, bond_list)
+    def smiles_from_backbone(self, backbone):
+
+        fragment_atoms = set()
+        for atom in backbone:
+            fragment_atoms |= {atom}
+            fragment_atoms |= set(self.G.neighbors(atom))
+                
+        smarts = Chem.MolFragmentToSmiles(
+            self.mol, fragment_atoms, canonical=True,
+            allBondsExplicit=True, allHsExplicit=True)
+        
+        ring = any([self.mol.GetAtomWithIdx(i).IsInRing() for i in backbone])
+        if ring:
+            smarts = smarts + ' | (Ring)'
+            
+        return smarts
     
-    if carbon.IsInRing():
-        return bond_smarts + ' | (Ring)'
-    else:
-        return bond_smarts
+    @property
+    def fragment_counts(self):
+        return pd.Series(Counter((
+            self.smiles_from_backbone(item)
+            for item in self.backbones)))
 
 
-def bond_list_to_smarts(mol, bond_list):
-    """For a given molecule and list of bond indices, return a SMARTS string.
-
-    mol: rdkit.Chem.Mol
-        The molecule the atom is present in
-    bond_list: list
-        A list of bond indicies
-
-    """
-    atoms = set()
-    for bidx in bond_list:
-        atoms.add(mol.GetBondWithIdx(bidx).GetBeginAtomIdx())
-        atoms.add(mol.GetBondWithIdx(bidx).GetEndAtomIdx())
-    return Chem.MolFragmentToSmiles(mol, atoms, canonical=True,
-                                    allBondsExplicit=True, allHsExplicit=True)
-
-
-def label_fragments(smiles):
-    """For a given smiles string, return the carbon fragments and atom indices
-    corresponding to those fragments
-
-    smiles: string
-
-    """
-    mol = Chem.MolFromSmiles(canonicalize_smiles(smiles, isomeric=False))
-    mol = Chem.AddHs(mol)
-    out = {}
-    for carbon in iter_carbons(mol):
-        try:
-            out[get_environment_smarts(carbon, mol)] += [carbon.GetIdx()]
-        except KeyError:
-            out[get_environment_smarts(carbon, mol)] = [carbon.GetIdx()]
-    return pd.Series(out)
+# def label_fragments(smiles):
+#     """For a given smiles string, return the carbon fragments and atom indices
+#     corresponding to those fragments
+#
+#     smiles: string
+#
+#     """
+#     mol = Chem.MolFromSmiles(canonicalize_smiles(smiles, isomeric=False))
+#     mol = Chem.AddHs(mol)
+#     out = {}
+#     for carbon in iter_carbons(mol):
+#         try:
+#             out[get_environment_smarts(carbon, mol)] += [carbon.GetIdx()]
+#         except KeyError:
+#             out[get_environment_smarts(carbon, mol)] = [carbon.GetIdx()]
+#     return pd.Series(out)
 
 
 def draw_mol_svg(mol_str, color_dict=None, figsize=(300, 300), smiles=True):
