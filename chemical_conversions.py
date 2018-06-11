@@ -5,7 +5,10 @@ import ssl
 from rdkit.Chem.inchi import MolFromInchi, MolToInchi
 from rdkit.Chem import MolToSmiles, MolFromSmiles
 
-import pubchempy as pcp
+try:
+    import pubchempy as pcp
+except ImportError:
+    pcp = False
 
 inchi_search = re.compile(
     '[^Get](InChI=[0-9BCOHNSOPrIFla+\-\(\)\\\/,pqbtmsih]{6,})', re.IGNORECASE)
@@ -17,6 +20,9 @@ CAS_search = re.compile(
 
 
 def get_smiles_from_name(name):
+
+    if not pcp:
+        raise RuntimeError('No Pubchempy')
 
     compounds = pcp.get_compounds(name, 'name')
     if len(compounds) == 1:
@@ -105,6 +111,9 @@ def get_cas_from_inchi(inchi):
 
 
 def get_iupac_name_from_smiles(smiles):
+    if not pcp:
+        raise RuntimeError('No Pubchempy')
+
     try:
         cpd = pcp.get_compounds(smiles, 'smiles')
     except pcp.PubChemHTTPError:
