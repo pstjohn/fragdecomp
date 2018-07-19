@@ -54,20 +54,30 @@ class Fragmenter(object):
             
         c_nodes = [n for n in self.G if self.G.nodes[n]['symbol'] is 'C']
         self.H = self.G.subgraph(c_nodes)
+
         
-    def backbone_iterator(self):
-        if self.size is 1:
-            for n in self.H:
-                yield (n,)
-                
-        elif self.size is 2:
-            for n in self.H:
-                for m in self.H.neighbors(n):
-                    yield tuple(sorted((n, m)))
-                    
-    @property
-    def backbones(self):
-        return list(set(self.backbone_iterator()))
+    def backbone_iterator(self, size, current_backbone=[]):
+
+        if current_backbone == []:
+            next_nodes = self.H
+        else:
+            next_nodes = self.H.neighbors(current_backbone[-1])
+
+        for n in next_nodes:
+
+            if n in current_backbone:
+                continue
+
+            if len(current_backbone + [n]) == size:
+                yield tuple(sorted(current_backbone + [n]))
+
+            else:
+                for path in self.backbone_iterator(
+                        size, current_backbone + [n]):
+                    yield path
+
+    def backbones(self, size):
+        return list(set(self.backbone_iterator(size)))
     
     def smiles_from_backbone(self, backbone):
 
@@ -90,7 +100,7 @@ class Fragmenter(object):
     def fragment_counts(self):
         return pd.Series(Counter((
             self.smiles_from_backbone(item)
-            for item in self.backbones)))
+            for item in self.backbones(self.size))))
 
 
 # def label_fragments(smiles):
