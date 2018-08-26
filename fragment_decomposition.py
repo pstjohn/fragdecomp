@@ -101,10 +101,8 @@ def label_fragments(smiles):
     mol = Chem.AddHs(mol)
     out = {}
     for carbon in iter_carbons(mol):
-        try:
-            out[get_environment_smarts(carbon, mol)] += [carbon.GetIdx()]
-        except KeyError:
-            out[get_environment_smarts(carbon, mol)] = [carbon.GetIdx()]
+        out[carbon.GetIdx()] = get_environment_smarts(carbon, mol)
+
     return pd.Series(out)
 
 
@@ -140,15 +138,14 @@ def draw_mol_svg(mol_str, color_dict=None, figsize=(300, 300), smiles=True):
 
     if color_dict is not None:
         matches = label_fragments(mol_str)
-        highlights = flatten(matches.values.tolist())
-        highlight_colors = [tuple(color_dict[matches.index[i]]) for i, match in
-                            enumerate(matches.values.tolist()) for atom in match]
-        highlight_colors_dict = {atom_id: color for atom_id, color
-                                 in zip(highlights, highlight_colors)}
+
+        highlight_colors_dict = pd.DataFrame(matches).merge(
+            pd.DataFrame(pd.Series(color_dict)), left_on=0,
+            right_index=True)['0_y']
         
         drawer.DrawMolecule(
-            mc, highlightAtoms=highlights,
-            highlightAtomColors=highlight_colors_dict,
+            mc, highlightAtoms=tuple(highlight_colors_dict.index),
+            highlightAtomColors=highlight_colors_dict.to_dict(),
             highlightBonds=False)
 
     else:
